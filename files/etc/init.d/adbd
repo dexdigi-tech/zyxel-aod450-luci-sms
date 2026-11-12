@@ -1,0 +1,59 @@
+#!/bin/sh /etc/rc.common
+START=96
+STOP=10
+USE_PROCD=1
+
+init_gadget() {
+	if ! grep -q '/sys/kernel/config' /proc/mounts 2>/dev/null; then
+		mount -t configfs none /sys/kernel/config 2>/dev/null
+	fi
+
+	local GDIR="/sys/kernel/config/usb_gadget/g1"
+	if [ -d "$GDIR" ]; then
+		return 0
+	fi
+
+	mkdir -p "$GDIR" 2>/dev/null || return 1
+	echo 0x0e8d > "$GDIR/idVendor"
+	echo 0x2008 > "$GDIR/idProduct"
+	echo 0x0200 > "$GDIR/bcdUSB"
+
+	mkdir -p "$GDIR/strings/0x409"
+	echo "0123456789ABCDEF" > "$GDIR/strings/0x409/serialnumber"
+	echo "MediaTek" > "$GDIR/strings/0x409/manufacturer"
+	echo "Zyxel AOD450ZY 5G" > "$GDIR/strings/0x409/product"
+
+	mkdir -p "$GDIR/configs/c.1/strings/0x409"
+	echo "RNDIS Tethering + ADB" > "$GDIR/configs/c.1/strings/0x409/configuration"
+
+	mkdir -p "$GDIR/functions/rndis.usb0"
+	ln -s "$GDIR/functions/rndis.usb0" "$GDIR/configs/c.1/" 2>/dev/null
+
+	local UDC_DEV="11201000.usb"
+	if [ -e "/sys/class/udc/$UDC_DEV" ]; then
+		echo "$UDC_DEV" > "$GDIR/UDC" 2>/dev/null
+	fi
+
+	sleep 1
+	if ip link show rndis0 >/dev/null 2>&1; then
+		ip link set rndis0 up
+		brctl addif br0 rndis0 2>/dev/null
+	fi
+}
+
+start_service() {
+	init_gadget
+
+	uci set usb.adb.service_adb_enable='1'
+	uci set usb.adb.service_adb_tcp_port='5555'
+	uci commit usb
+
+	procd_open_instance
+	procd_set_param command /sbin/adbd_usb
+	procd_set_param respawn 3600 5 0
+	procd_close_instance
+}
+
+stop_service() {
+	killall adbd_usb 2>/dev/null
+}

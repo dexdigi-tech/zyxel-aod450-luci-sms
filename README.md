@@ -53,7 +53,18 @@ Complete offline installation bundle and guide to enable the **full OpenWrt 21.0
 * Resolves the 4–5 minute DHCP IP delay when Bridge Mode is disabled (where `/usr/bin/hachi` only polls `udhcpd` every 300s after boot or Ethernet link flaps).
 * Automatically checks every 2 seconds and restarts `/usr/sbin/udhcpd` when `bridge_mode_control` is `0` and DHCP Server is enabled, while staying inactive if Bridge Mode is turned back on.
 
-### 5. Fully Offline & Persistent
+### 5. Persistent ADB & USB Tethering (RNDIS) Service (`/etc/init.d/adbd`)
+* **Network ADB (`0.0.0.0:5555`)**:
+  * Persistent procd-managed `adbd_usb` service listening on port `5555`.
+  * Instant root shell access without password prompts (`adb shell`).
+  * High-speed file transfer (`adb push` / `adb pull`) bypassing SFTP limitations.
+  * Port forwarding (`adb forward`) to reach LuCI (`:4153`) or Airtel GUI (`:80`) even during network maintenance.
+* **USB Tethering (RNDIS / USB Ethernet)**:
+  * Automatically configures Linux USB ConfigFS composite gadget (`11201000.usb` MediaTek MTU3 SuperSpeed 5Gbps controller).
+  * Creates `rndis0` network interface and bridges it into `br0` (`master br0`).
+  * When a PC/laptop is connected via USB Type-C, it automatically enumerates an **RNDIS USB Ethernet adapter**, receives a DHCP IP lease (`192.168.10.x`), and gets full high-speed Airtel 5G internet access directly over the USB cable!
+
+### 6. Fully Offline & Persistent
 * Bundles all 9 official OpenWrt `21.02.7` `aarch64_cortex-a53` / `all` `.ipk` packages — no WAN internet needed on the ODU during installation.
 * Stores everything persistently in `/overlay` (`~1 MB` / `7%` used) and registers custom files in `/etc/sysupgrade.conf`.
 * Automatically detects the target ODU's `admin` password hash from `/etc/passwd` / `/etc/shadow` so LuCI uses that ODU's own credentials.
