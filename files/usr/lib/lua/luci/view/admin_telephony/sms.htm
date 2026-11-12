@@ -1,0 +1,402 @@
+<%+header%>
+
+<h2 name="content"><%:SMS Messages%></h2>
+
+<div id="sms-status-banner" class="alert-message" style="display:none; margin-bottom: 12px;"></div>
+
+<div class="cbi-section">
+	<div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:4px 0;">
+		<div>
+			<strong><%:Inbox%>:</strong> <span id="stat-inbox">0</span>
+			(<span class="label important" id="stat-unread">0 <%:Unread%></span>) &nbsp;|&nbsp;
+			<strong><%:Sent%>:</strong> <span id="stat-sent">0</span> &nbsp;|&nbsp;
+			<strong><%:Drafts%>:</strong> <span id="stat-draft">0</span> &nbsp;|&nbsp;
+			<strong><%:SMSC%>:</strong> <span id="stat-csca">-</span> &nbsp;|&nbsp;
+			<strong><%:Storage%>:</strong> <span id="stat-cpms">-</span>
+		</div>
+		<div style="display:flex; align-items:center; gap:10px;">
+			<label style="margin:0; font-weight:normal; cursor:pointer;">
+				<input type="checkbox" id="sms-autorefresh" checked="checked" />
+				<%:Auto-refresh (15s)%>
+			</label>
+			<input type="button" id="btn-sms-refresh" class="cbi-button cbi-button-reload" value="<%:Refresh%>" />
+		</div>
+	</div>
+</div>
+
+<fieldset class="cbi-section">
+	<legend><%:Compose SMS%></legend>
+	<div class="cbi-section-node">
+		<div class="cbi-value">
+			<label class="cbi-value-title" for="sms-phone"><%:Recipient Number%></label>
+			<div class="cbi-value-field">
+				<input type="text" class="cbi-input-text" id="sms-phone" maxlength="32" placeholder="e.g. +9198XXXXXXXX or 121" />
+			</div>
+		</div>
+		<div class="cbi-value">
+			<label class="cbi-value-title" for="sms-message"><%:Message%></label>
+			<div class="cbi-value-field">
+				<textarea id="sms-message" rows="4" maxlength="160" style="width:100%; max-width:480px;" placeholder="Enter SMS text (max 160 characters)..."></textarea>
+				<div class="cbi-value-description">
+					<span id="sms-char-count">0 / 160</span>
+				</div>
+			</div>
+		</div>
+		<div class="cbi-value cbi-value-last">
+			<label class="cbi-value-title">&nbsp;</label>
+			<div class="cbi-value-field" style="display:flex; gap:8px; flex-wrap:wrap;">
+				<input type="button" id="btn-sms-send" class="cbi-button cbi-button-apply" value="<%:Send SMS%>" />
+				<input type="button" id="btn-sms-save" class="cbi-button cbi-button-neutral" value="<%:Save as Draft%>" />
+				<input type="button" id="btn-sms-clear" class="cbi-button cbi-button-reset" value="<%:Clear%>" />
+			</div>
+		</div>
+	</div>
+</fieldset>
+
+<ul class="cbi-tabmenu" id="sms-tabs">
+	<li class="cbi-tab" data-tab="inbox"><a href="#inbox"><%:Inbox%> (<span id="tab-count-inbox">0</span>)</a></li>
+	<li class="cbi-tab-disabled" data-tab="sent"><a href="#sent"><%:Sent%> (<span id="tab-count-sent">0</span>)</a></li>
+	<li class="cbi-tab-disabled" data-tab="draft"><a href="#draft"><%:Drafts%> (<span id="tab-count-draft">0</span>)</a></li>
+	<li class="cbi-tab-disabled" data-tab="all"><a href="#all"><%:All%> (<span id="tab-count-all">0</span>)</a></li>
+</ul>
+
+<fieldset class="cbi-section">
+	<div id="sms-empty-msg" style="padding:12px; color:#666;"><%:Loading messages...%></div>
+	<table class="table cbi-section-table" id="sms-table" style="display:none;">
+		<thead>
+			<tr class="tr table-titles">
+				<th class="th" style="width:110px;"><%:Status%></th>
+				<th class="th" style="width:150px;"><%:Number%></th>
+				<th class="th"><%:Message%></th>
+				<th class="th" style="width:155px;"><%:Time%></th>
+				<th class="th" style="width:210px;"><%:Actions%></th>
+			</tr>
+		</thead>
+		<tbody id="sms-tbody"></tbody>
+	</table>
+</fieldset>
+
+<script type="text/javascript">
+(function() {
+	var TOKEN = "<%=token%>";
+	var URL_LIST   = "<%=luci.dispatcher.build_url("admin", "telephony", "sms_list")%>";
+	var URL_SEND   = "<%=luci.dispatcher.build_url("admin", "telephony", "sms_send")%>";
+	var URL_ACTION = "<%=luci.dispatcher.build_url("admin", "telephony", "sms_action")%>";
+
+	var activeTab = "inbox";
+	var allMessages = [];
+	var refreshTimer = null;
+
+	var phoneInput = document.getElementById("sms-phone");
+	var msgInput   = document.getElementById("sms-message");
+	var charCount  = document.getElementById("sms-char-count");
+	var banner     = document.getElementById("sms-status-banner");
+	var btnSend    = document.getElementById("btn-sms-send");
+	var btnSave    = document.getElementById("btn-sms-save");
+	var btnClear   = document.getElementById("btn-sms-clear");
+	var btnRefresh = document.getElementById("btn-sms-refresh");
+	var chkAuto    = document.getElementById("sms-autorefresh");
+	var tbl        = document.getElementById("sms-table");
+	var tbody      = document.getElementById("sms-tbody");
+	var emptyMsg   = document.getElementById("sms-empty-msg");
+
+	function showBanner(kind, text) {
+		banner.className = "alert-message " + (kind === "error" ? "error" : (kind === "success" ? "success" : "info"));
+		banner.textContent = text;
+		banner.style.display = "block";
+	}
+
+	function clearBanner() {
+		banner.style.display = "none";
+	}
+
+	function updateCharCount() {
+		var len = (msgInput.value || "").length;
+		charCount.textContent = len + " / 160";
+	}
+
+	function stateMatchesTab(state, tab) {
+		if (tab === "all") return true;
+		if (tab === "inbox") return state === "REC UNREAD" || state === "REC READ";
+		if (tab === "sent")  return state === "STO SENT";
+		if (tab === "draft") return state === "STO DRAFT";
+		return true;
+	}
+
+	function makeBadge(state) {
+		var span = document.createElement("span");
+		if (state === "REC UNREAD") {
+			span.className = "label important";
+			span.textContent = "Unread";
+		} else if (state === "REC READ") {
+			span.className = "label success";
+			span.textContent = "Read";
+		} else if (state === "STO SENT") {
+			span.className = "label notice";
+			span.textContent = "Sent";
+		} else if (state === "STO DRAFT") {
+			span.className = "label warning";
+			span.textContent = "Draft";
+		} else {
+			span.className = "label";
+			span.textContent = state || "Unknown";
+		}
+		return span;
+	}
+
+	function makeActionBtn(label, cls, onClick) {
+		var b = document.createElement("input");
+		b.type = "button";
+		b.className = "cbi-button " + cls;
+		b.value = label;
+		b.style.marginRight = "4px";
+		b.style.marginBottom = "2px";
+		b.addEventListener("click", onClick);
+		return b;
+	}
+
+	function renderMessages() {
+		var filtered = allMessages.filter(function(m) {
+			return stateMatchesTab(m.state, activeTab);
+		});
+
+		while (tbody.firstChild) {
+			tbody.removeChild(tbody.firstChild);
+		}
+
+		if (!filtered.length) {
+			tbl.style.display = "none";
+			emptyMsg.textContent = "No SMS messages in " + activeTab + ".";
+			emptyMsg.style.display = "block";
+			return;
+		}
+
+		emptyMsg.style.display = "none";
+		tbl.style.display = "";
+
+		filtered.forEach(function(m) {
+			var tr = document.createElement("tr");
+			tr.className = "tr";
+
+			var tdState = document.createElement("td");
+			tdState.className = "td";
+			tdState.appendChild(makeBadge(m.state));
+
+			var tdFrom = document.createElement("td");
+			tdFrom.className = "td";
+			tdFrom.style.fontWeight = (m.state === "REC UNREAD") ? "bold" : "normal";
+			tdFrom.textContent = m.from || "-";
+
+			var tdContent = document.createElement("td");
+			tdContent.className = "td";
+			tdContent.style.whiteSpace = "pre-wrap";
+			tdContent.style.wordBreak = "break-word";
+			tdContent.style.fontWeight = (m.state === "REC UNREAD") ? "bold" : "normal";
+			tdContent.textContent = m.content || "";
+
+			var tdTime = document.createElement("td");
+			tdTime.className = "td";
+			tdTime.textContent = m.timestamp || "-";
+
+			var tdAct = document.createElement("td");
+			tdAct.className = "td";
+
+			if (m.state === "STO DRAFT") {
+				tdAct.appendChild(makeActionBtn("Load", "cbi-button-action", function() {
+					phoneInput.value = m.from || "";
+					msgInput.value = m.content || "";
+					updateCharCount();
+					msgInput.focus();
+					window.scrollTo(0, 0);
+				}));
+			} else if (m.from) {
+				tdAct.appendChild(makeActionBtn("Reply", "cbi-button-action", function() {
+					phoneInput.value = m.from || "";
+					msgInput.focus();
+					window.scrollTo(0, 0);
+				}));
+			}
+
+			if (m.state === "REC UNREAD") {
+				tdAct.appendChild(makeActionBtn("Mark Read", "cbi-button-neutral", function() {
+					runAction("mark_read", m.filename);
+				}));
+			} else if (m.state === "REC READ") {
+				tdAct.appendChild(makeActionBtn("Unread", "cbi-button-neutral", function() {
+					runAction("mark_unread", m.filename);
+				}));
+			}
+
+			tdAct.appendChild(makeActionBtn("Delete", "cbi-button-remove", function() {
+				if (confirm("Delete this SMS message?")) {
+					runAction("delete", m.filename);
+				}
+			}));
+
+			tr.appendChild(tdState);
+			tr.appendChild(tdFrom);
+			tr.appendChild(tdContent);
+			tr.appendChild(tdTime);
+			tr.appendChild(tdAct);
+			tbody.appendChild(tr);
+		});
+	}
+
+	function updateCounts(c) {
+		c = c || {};
+		document.getElementById("stat-inbox").textContent  = c.inbox || 0;
+		document.getElementById("stat-unread").textContent = (c.unread || 0) + " Unread";
+		document.getElementById("stat-sent").textContent   = c.sent || 0;
+		document.getElementById("stat-draft").textContent  = c.draft || 0;
+		document.getElementById("tab-count-inbox").textContent = c.inbox || 0;
+		document.getElementById("tab-count-sent").textContent  = c.sent || 0;
+		document.getElementById("tab-count-draft").textContent = c.draft || 0;
+		document.getElementById("tab-count-all").textContent   = c.total || 0;
+	}
+
+	function loadMessages(includeModemInfo) {
+		var url = URL_LIST + (includeModemInfo ? "?modem_info=1" : "");
+		fetch(url, { credentials: "same-origin" })
+			.then(function(r) { return r.json(); })
+			.then(function(data) {
+				if (!data || !data.ok) {
+					showBanner("error", (data && data.error) || "Failed to load SMS messages.");
+					return;
+				}
+				allMessages = data.messages || [];
+				updateCounts(data.counts);
+				if (data.modem) {
+					document.getElementById("stat-csca").textContent = data.modem.csca || "-";
+					document.getElementById("stat-cpms").textContent = data.modem.cpms || "-";
+				}
+				renderMessages();
+			})
+			.catch(function(err) {
+				showBanner("error", "Error loading SMS list: " + err);
+			});
+	}
+
+	function submitSms(mode) {
+		clearBanner();
+		var phone = (phoneInput.value || "").trim();
+		var msg   = (msgInput.value || "").trim();
+		if (!phone) {
+			showBanner("error", "Please enter a recipient phone number.");
+			phoneInput.focus();
+			return;
+		}
+		if (!msg) {
+			showBanner("error", "Please enter a message.");
+			msgInput.focus();
+			return;
+		}
+
+		btnSend.disabled = true;
+		btnSave.disabled = true;
+		var body = new URLSearchParams({
+			token: TOKEN,
+			mode: mode,
+			phone: phone,
+			message: msg
+		});
+
+		fetch(URL_SEND, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: body.toString()
+		})
+			.then(function(r) { return r.json(); })
+			.then(function(data) {
+				btnSend.disabled = false;
+				btnSave.disabled = false;
+				if (!data || !data.ok) {
+					showBanner("error", (data && data.error) || "Failed to " + mode + " SMS.");
+					return;
+				}
+				showBanner("success", mode === "send" ? "SMS submitted to modem queue and saved to Sent." : "SMS saved to Drafts.");
+				msgInput.value = "";
+				updateCharCount();
+				setActiveTab(mode === "send" ? "sent" : "draft");
+				loadMessages(false);
+			})
+			.catch(function(err) {
+				btnSend.disabled = false;
+				btnSave.disabled = false;
+				showBanner("error", "Request failed: " + err);
+			});
+	}
+
+	function runAction(op, filename) {
+		clearBanner();
+		var body = new URLSearchParams({
+			token: TOKEN,
+			op: op,
+			filename: filename
+		});
+		fetch(URL_ACTION, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: body.toString()
+		})
+			.then(function(r) { return r.json(); })
+			.then(function(data) {
+				if (!data || !data.ok) {
+					showBanner("error", (data && data.error) || "SMS action failed.");
+					return;
+				}
+				loadMessages(false);
+			})
+			.catch(function(err) {
+				showBanner("error", "Action request failed: " + err);
+			});
+	}
+
+	function setActiveTab(tab) {
+		activeTab = tab;
+		var items = document.querySelectorAll("#sms-tabs li");
+		for (var i = 0; i < items.length; i++) {
+			var li = items[i];
+			li.className = (li.getAttribute("data-tab") === tab) ? "cbi-tab" : "cbi-tab-disabled";
+		}
+		renderMessages();
+	}
+
+	function resetAutoRefresh() {
+		if (refreshTimer) {
+			clearInterval(refreshTimer);
+			refreshTimer = null;
+		}
+		if (chkAuto.checked) {
+			refreshTimer = setInterval(function() { loadMessages(false); }, 15000);
+		}
+	}
+
+	document.getElementById("sms-tabs").addEventListener("click", function(e) {
+		var li = e.target.closest ? e.target.closest("li[data-tab]") : null;
+		if (li) {
+			e.preventDefault();
+			setActiveTab(li.getAttribute("data-tab"));
+		}
+	});
+
+	msgInput.addEventListener("input", updateCharCount);
+	btnSend.addEventListener("click", function() { submitSms("send"); });
+	btnSave.addEventListener("click", function() { submitSms("save"); });
+	btnClear.addEventListener("click", function() {
+		phoneInput.value = "";
+		msgInput.value = "";
+		updateCharCount();
+		clearBanner();
+	});
+	btnRefresh.addEventListener("click", function() { loadMessages(true); });
+	chkAuto.addEventListener("change", resetAutoRefresh);
+
+	updateCharCount();
+	loadMessages(true);
+	resetAutoRefresh();
+})();
+</script>
+
+<%+footer%>
