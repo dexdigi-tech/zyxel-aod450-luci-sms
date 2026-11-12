@@ -1,10 +1,11 @@
 <#
 .SYNOPSIS
-    Deploys LuCI Web UI, Telephony -> SMS, and persistent 2s DHCP watchdog
-    to a Zyxel AOD450ZY (Airtel 5G ODU) from the local luci-sms-aod450.tar.gz bundle.
+    Deploys LuCI Web UI, Telephony SMS & Cellular/Signal suite, persistent 2s DHCP watchdog,
+    and persistent ADB / USB Tethering service to a Zyxel AOD450ZY (Airtel 5G ODU)
+    from the local luci-sms-aod450.tar.gz bundle.
 
 .EXAMPLE
-    .\deploy_to_odu.ps1 -OduIp 192.168.10.1 -Password AZYODAFE00042515
+    .\install-from-pc.ps1 -OduIp 192.168.10.1 -Password <YOUR_ODU_ADMIN_PASSWORD>
 #>
 param(
     [string]$OduIp = "192.168.10.1",
