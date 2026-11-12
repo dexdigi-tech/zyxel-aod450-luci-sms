@@ -31,20 +31,26 @@ if [ ! -d "$DIR/ipks" ]; then
 fi
 opkg install --force-depends "$DIR/ipks/"*.ipk
 
-# 4. Install custom LuCI Telephony SMS files (back up stock controller outside controller/)
-echo "[+] Installing Telephony SMS controller and view..."
+# 4. Install custom LuCI Telephony SMS & Cellular files (back up stock controller outside controller/)
+echo "[+] Installing Telephony SMS and Cellular & Signal controller, model, and views..."
 if [ -f /usr/lib/lua/luci/controller/admin/telephony.lua ] && [ ! -f /etc/telephony.lua.stock.bak ]; then
     if ! grep -q "action_sms_list" /usr/lib/lua/luci/controller/admin/telephony.lua 2>/dev/null; then
         cp -f /usr/lib/lua/luci/controller/admin/telephony.lua /etc/telephony.lua.stock.bak
     fi
 fi
-mkdir -p /usr/lib/lua/luci/controller/admin /usr/lib/lua/luci/view/admin_telephony
+mkdir -p /usr/lib/lua/luci/controller/admin /usr/lib/lua/luci/view/admin_telephony /usr/lib/lua/luci/model
 cp -f "$DIR/files/usr/lib/lua/luci/controller/admin/telephony.lua" /usr/lib/lua/luci/controller/admin/telephony.lua
+cp -f "$DIR/files/usr/lib/lua/luci/model/cellular.lua" /usr/lib/lua/luci/model/cellular.lua
 cp -f "$DIR/files/usr/lib/lua/luci/view/admin_telephony/sms.htm" /usr/lib/lua/luci/view/admin_telephony/sms.htm
+cp -f "$DIR/files/usr/lib/lua/luci/view/admin_telephony/cellular.htm" /usr/lib/lua/luci/view/admin_telephony/cellular.htm
 chmod 644 /usr/lib/lua/luci/controller/admin/telephony.lua
+chmod 644 /usr/lib/lua/luci/model/cellular.lua
 chmod 644 /usr/lib/lua/luci/view/admin_telephony/sms.htm
+chmod 644 /usr/lib/lua/luci/view/admin_telephony/cellular.htm
 lua -e 'assert(loadfile("/usr/lib/lua/luci/controller/admin/telephony.lua"))'
+lua -e 'assert(loadfile("/usr/lib/lua/luci/model/cellular.lua"))'
 lua -e 'local tp = require "luci.template.parser"; local f, _, err = tp.parse("/usr/lib/lua/luci/view/admin_telephony/sms.htm"); assert(f, err)'
+lua -e 'local tp = require "luci.template.parser"; local f, _, err = tp.parse("/usr/lib/lua/luci/view/admin_telephony/cellular.htm"); assert(f, err)'
 
 # 5. Install DHCP watchdog (resolves 4-5 min DHCP offer delay when Bridge Mode is disabled)
 echo "[+] Installing 2s DHCP watchdog..."
@@ -85,7 +91,9 @@ echo "[+] Enabling and starting services..."
 echo "[+] Registering files in /etc/sysupgrade.conf for persistence..."
 for p in \
   /usr/lib/lua/luci/controller/admin/telephony.lua \
+  /usr/lib/lua/luci/model/cellular.lua \
   /usr/lib/lua/luci/view/admin_telephony/sms.htm \
+  /usr/lib/lua/luci/view/admin_telephony/cellular.htm \
   /usr/sbin/dhcp-watchdog.sh \
   /etc/init.d/dhcp-watchdog
 do
@@ -114,6 +122,7 @@ echo "   (e.g., http://192.168.10.1:4153/)"
 echo " Login:"
 echo "   Username: admin"
 echo "   Password: <Your ODU admin password>"
-echo " SMS Feature:"
-echo "   Navigate to: Telephony -> SMS"
+echo " Telephony Features:"
+echo "   - SMS Manager:        Telephony -> SMS"
+echo "   - Cellular & Signal:  Telephony -> Cellular & Signal"
 echo "=========================================================="

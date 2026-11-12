@@ -1,0 +1,783 @@
+<%+header%>
+
+<style type="text/css">
+.cell-card {
+	background: #fff;
+	border: 1px solid #dcdcdc;
+	border-radius: 6px;
+	padding: 16px;
+	margin-bottom: 18px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.cell-card-title {
+	font-size: 16px;
+	font-weight: 600;
+	color: #333;
+	margin: 0 0 14px 0;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #eee;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+.cell-badge {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+.badge-excellent { background: #28a745; color: #fff; }
+.badge-good      { background: #17a2b8; color: #fff; }
+.badge-fair      { background: #ffc107; color: #212529; }
+.badge-poor      { background: #dc3545; color: #fff; }
+.badge-secondary { background: #6c757d; color: #fff; }
+.badge-primary   { background: #007bff; color: #fff; }
+.badge-info      { background: #e8f4fd; color: #0275d8; border: 1px solid #b8daff; }
+
+.grid-metrics {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+	gap: 12px;
+	margin-bottom: 16px;
+}
+.metric-box {
+	background: #f8f9fa;
+	border: 1px solid #e9ecef;
+	border-radius: 6px;
+	padding: 10px;
+	text-align: center;
+	transition: all 0.2s ease;
+}
+.metric-box:hover {
+	border-color: #ced4da;
+	background: #f1f3f5;
+}
+.metric-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	color: #6c757d;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+.metric-val {
+	font-size: 18px;
+	font-weight: 700;
+	color: #212529;
+}
+.metric-unit {
+	font-size: 12px;
+	font-weight: normal;
+	color: #6c757d;
+	margin-left: 2px;
+}
+
+/* 4-bar signal indicator */
+.signal-bars-wrap {
+	display: inline-flex;
+	align-items: flex-end;
+	gap: 3px;
+	height: 24px;
+	padding: 0 4px;
+}
+.signal-bar {
+	width: 5px;
+	background: #dcdcdc;
+	border-radius: 1px;
+	transition: background 0.3s;
+}
+.signal-bar.b1 { height: 6px; }
+.signal-bar.b2 { height: 12px; }
+.signal-bar.b3 { height: 18px; }
+.signal-bar.b4 { height: 24px; }
+.signal-bar.active.excellent { background: #28a745; }
+.signal-bar.active.good      { background: #17a2b8; }
+.signal-bar.active.fair      { background: #ffc107; }
+.signal-bar.active.poor      { background: #dc3545; }
+
+/* Antenna Progress Bar */
+.ant-progress-bg {
+	background: #e9ecef;
+	border-radius: 3px;
+	height: 10px;
+	overflow: hidden;
+	width: 100%;
+	min-width: 80px;
+}
+.ant-progress-fill {
+	height: 100%;
+	border-radius: 3px;
+	transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* Info Table Styling */
+.cell-info-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.cell-info-table th {
+	background: #f1f3f5;
+	padding: 8px 10px;
+	font-size: 12px;
+	font-weight: 600;
+	color: #495057;
+	border-bottom: 2px solid #dee2e6;
+	text-align: left;
+}
+.cell-info-table td {
+	padding: 8px 10px;
+	font-size: 13px;
+	border-bottom: 1px solid #eee;
+	color: #212529;
+}
+.cell-info-table tr:hover td {
+	background: #f8f9fa;
+}
+.table-prop-name {
+	font-weight: 600;
+	color: #495057;
+	width: 32%;
+}
+
+/* Thermal Sensor Tags */
+.temp-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.temp-tag {
+	background: #f8f9fa;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	padding: 4px 8px;
+	font-size: 12px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.temp-tag .temp-name {
+	color: #6c757d;
+	font-size: 11px;
+	text-transform: uppercase;
+}
+.temp-tag .temp-val {
+	font-weight: 600;
+	color: #212529;
+}
+
+/* Raw pre block */
+.raw-pre {
+	background: #212529;
+	color: #f8f9fa;
+	padding: 10px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-family: monospace;
+	max-height: 250px;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+</style>
+
+<h2 name="content"><%:Cellular Network & Signal Status%></h2>
+
+<div class="cbi-section" style="margin-bottom:14px;">
+	<div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:4px 0;">
+		<div style="display:flex; align-items:center; gap:10px;">
+			<div class="signal-bars-wrap" id="top-sig-bars" title="Signal Level">
+				<div class="signal-bar b1" id="sig-b1"></div>
+				<div class="signal-bar b2" id="sig-b2"></div>
+				<div class="signal-bar b3" id="sig-b3"></div>
+				<div class="signal-bar b4" id="sig-b4"></div>
+			</div>
+			<div>
+				<span class="cell-badge badge-secondary" id="top-sig-quality">POOR</span>
+				<span class="cell-badge badge-primary" id="top-rat-mode">4G/5G</span>
+				<span class="cell-badge badge-info" id="top-operator">airtel</span>
+			</div>
+		</div>
+		<div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
+			<label style="margin:0; font-weight:normal; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+				<input type="checkbox" id="cell-autorefresh" checked="checked" />
+				<span><%:Auto-refresh%>:</span>
+			</label>
+			<select id="cell-interval" style="padding:2px 6px; font-size:12px; width:auto; display:inline-block;">
+				<option value="3000"><%:3s (High-rate)%></option>
+				<option value="5000" selected="selected"><%:5s (Alignment)%></option>
+				<option value="10000"><%:10s%></option>
+				<option value="30000"><%:30s%></option>
+			</select>
+			<button type="button" id="btn-refresh" class="cbi-button cbi-button-reload"><%:Refresh Now%></button>
+			<span id="update-time" style="font-size:12px; color:#6c757d;"><%:Updating...%></span>
+		</div>
+	</div>
+</div>
+
+<!-- 1. Top RF Metrics Grid -->
+<div class="grid-metrics">
+	<div class="metric-box">
+		<div class="metric-label">RSRP (Power)</div>
+		<div class="metric-val" id="m-rsrp">--<span class="metric-unit">dBm</span></div>
+	</div>
+	<div class="metric-box">
+		<div class="metric-label">RSRQ (Quality)</div>
+		<div class="metric-val" id="m-rsrq">--<span class="metric-unit">dB</span></div>
+	</div>
+	<div class="metric-box">
+		<div class="metric-label">SINR (SNR)</div>
+		<div class="metric-val" id="m-sinr">--<span class="metric-unit">dB</span></div>
+	</div>
+	<div class="metric-box">
+		<div class="metric-label">RSSI (Carrier)</div>
+		<div class="metric-val" id="m-rssi">--<span class="metric-unit">dBm</span></div>
+	</div>
+	<div class="metric-box">
+		<div class="metric-label">Primary Band</div>
+		<div class="metric-val" id="m-band">--</div>
+	</div>
+	<div class="metric-box">
+		<div class="metric-label">Bandwidth</div>
+		<div class="metric-val" id="m-bw">--</div>
+	</div>
+	<div class="metric-box">
+		<div class="metric-label">Physical Cell (PCI)</div>
+		<div class="metric-val" id="m-pci">--</div>
+	</div>
+	<div class="metric-box">
+		<div class="metric-label">eNB / Cell ID</div>
+		<div class="metric-val" id="m-cid">--</div>
+	</div>
+</div>
+
+<!-- 2. Serving Cells & Carrier Aggregation (CA) -->
+<div class="cell-card">
+	<div class="cell-card-title">
+		<span><%:Serving Cells & Carrier Aggregation (CA)%></span>
+		<span class="cell-badge badge-primary" id="cell-count-badge">1 Cell</span>
+	</div>
+	<div style="overflow-x:auto;">
+		<table class="cell-info-table" id="table-cells">
+			<thead>
+				<tr>
+					<th><%:Cell Type%></th>
+					<th><%:RAT%></th>
+					<th><%:Band%></th>
+					<th><%:Bandwidth%></th>
+					<th><%:EARFCN / ARFCN%></th>
+					<th><%:PCI%></th>
+					<th><%:Cell ID (ECI)%></th>
+					<th><%:eNB ID (Sector)%></th>
+					<th><%:TAC%></th>
+					<th><%:RSRP%></th>
+					<th><%:RSRQ%></th>
+					<th><%:SINR%></th>
+					<th><%:Status%></th>
+				</tr>
+			</thead>
+			<tbody id="tbody-cells">
+				<tr><td colspan="13" style="text-align:center; color:#6c757d;"><%:Loading serving cell info...%></td></tr>
+			</tbody>
+		</table>
+	</div>
+</div>
+
+<!-- 3. Per-Antenna RX Chains (Directional Antenna Alignment Helper) -->
+<div class="cell-card">
+	<div class="cell-card-title">
+		<span><%:Per-Antenna RX Chains (Antenna Alignment Helper)%></span>
+		<span style="font-size:12px; font-weight:normal; color:#6c757d;"><%:Use this live feedback to point the ODU for maximum gain%></span>
+	</div>
+	<div style="overflow-x:auto;">
+		<table class="cell-info-table" id="table-rx">
+			<thead>
+				<tr>
+					<th style="width:18%;"><%:Antenna Chain%></th>
+					<th style="width:25%;"><%:Signal Strength Bar (RSRP)%></th>
+					<th style="width:14%;"><%:RSRP (dBm)%></th>
+					<th style="width:14%;"><%:RSRQ (dB)%></th>
+					<th style="width:14%;"><%:RSSI (dBm)%></th>
+					<th style="width:15%;"><%:SINR (dB)%></th>
+				</tr>
+			</thead>
+			<tbody id="tbody-rx">
+				<tr><td colspan="6" style="text-align:center; color:#6c757d;"><%:Loading antenna metrics...%></td></tr>
+			</tbody>
+		</table>
+	</div>
+</div>
+
+<!-- 4. Two Columns: SIM & Registration | Modem & Hardware -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+	<!-- SIM Card Details -->
+	<div class="cell-card">
+		<div class="cell-card-title">
+			<span><%:SIM Card & Network Registration%></span>
+			<span class="cell-badge badge-excellent" id="sim-badge-status">READY</span>
+		</div>
+		<table class="cell-info-table">
+			<tbody>
+				<tr>
+					<td class="table-prop-name"><%:SIM Status%>:</td>
+					<td id="sim-status">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:SIM State%>:</td>
+					<td id="sim-state">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:PIN Lock State%>:</td>
+					<td id="sim-pin-state">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Remaining Attempts%>:</td>
+					<td id="sim-pin-tries">PIN1: 3 | PIN2: 3 | PUK1: 10 | PUK2: 10</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Operator (PLMN)%>:</td>
+					<td id="sim-operator">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Registration Status%>:</td>
+					<td id="sim-reg">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Configured RAT Mode%>:</td>
+					<td id="sim-rat-mode">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:IMSI%>:</td>
+					<td id="sim-imsi" style="font-family:monospace;">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:ICCID (SIM ID)%>:</td>
+					<td id="sim-iccid" style="font-family:monospace;">--</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Modem & Hardware Details -->
+	<div class="cell-card">
+		<div class="cell-card-title">
+			<span><%:Modem & Hardware Details%></span>
+			<span class="cell-badge badge-info" id="modem-badge-model">RG500L-AR</span>
+		</div>
+		<table class="cell-info-table">
+			<tbody>
+				<tr>
+					<td class="table-prop-name"><%:Manufacturer%>:</td>
+					<td id="modem-mfg">Quectel</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Modem Model%>:</td>
+					<td id="modem-model">RG500L-AR</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Firmware Revision%>:</td>
+					<td id="modem-fw" style="font-size:12px; word-break:break-all;">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Platform SoC%>:</td>
+					<td id="modem-platform">MediaTek T750 (MT6890) 5G</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:IMEI%>:</td>
+					<td id="modem-imei" style="font-family:monospace;">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:IMEI SVN%>:</td>
+					<td id="modem-imeisv">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Modem Interface%>:</td>
+					<td id="modem-channel">MIPC / /dev/ttyUSB2</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Device / Hostname%>:</td>
+					<td id="sys-device">Zyxel AOD450ZY (AOD450)</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:OS & Kernel%>:</td>
+					<td id="sys-os">OpenWrt 21.02.7 (Linux 5.4.238 aarch64)</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Uptime & Memory%>:</td>
+					<td id="sys-uptime">--</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</div>
+
+<!-- 5. Active WAN / Data Call & Temperature Sensors -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:16px;">
+	<!-- WAN Connection -->
+	<div class="cell-card">
+		<div class="cell-card-title">
+			<span><%:Active WAN & Data Call%></span>
+			<span class="cell-badge badge-excellent" id="wan-badge-status">CONNECTED</span>
+		</div>
+		<table class="cell-info-table">
+			<tbody>
+				<tr>
+					<td class="table-prop-name"><%:Connection Status%>:</td>
+					<td id="wan-status">Connected</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Interface%>:</td>
+					<td id="wan-iface" style="font-weight:600;">ccmni1</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:APN Profile%>:</td>
+					<td id="wan-apn">airtelgprs.com</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:PDP Context Type%>:</td>
+					<td id="wan-pdp">IPv4</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:IPv4 Address / Mask%>:</td>
+					<td id="wan-ip" style="font-weight:600;">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Default Gateway%>:</td>
+					<td id="wan-gw">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:DNS Servers%>:</td>
+					<td id="wan-dns">--</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:MTU%>:</td>
+					<td id="wan-mtu">1500</td>
+				</tr>
+				<tr>
+					<td class="table-prop-name"><%:Traffic Transferred%>:</td>
+					<td id="wan-traffic">RX: 0 KB | TX: 0 KB</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Thermal Sensors -->
+	<div class="cell-card">
+		<div class="cell-card-title">
+			<span><%:Thermal Sensors (AT+QTEMP)%></span>
+			<span class="cell-badge badge-info" id="thermal-max-badge">-- °C</span>
+		</div>
+		<p style="font-size:12px; color:#6c757d; margin-top:0;"><%:Hardware temperature monitor for MediaTek T750 SoC, RF PA, and Quectel modem modules:%></p>
+		<div class="temp-grid" id="temp-grid">
+			<div style="color:#6c757d; font-size:12px;"><%:Loading thermal sensors...%></div>
+		</div>
+	</div>
+</div>
+
+<!-- 6. Raw AT Command Diagnostics (Collapsible) -->
+<details class="cell-card" style="cursor:pointer;">
+	<summary class="cell-card-title" style="border:none; margin:0; padding:0; outline:none;">
+		<span><%:Diagnostics & Raw AT Response (Click to Expand)%></span>
+		<span style="font-size:12px; font-weight:normal; color:#6c757d;"><%:AT+ECELL, EDMFAPP 6,4 / 6,9 / 6,10, CESQ, CSQ, QTEMP%></span>
+	</summary>
+	<div style="margin-top:14px; cursor:default;">
+		<h5 style="margin:8px 0 4px 0;">AT+ECELL</h5>
+		<pre class="raw-pre" id="raw-ecell">--</pre>
+
+		<h5 style="margin:8px 0 4px 0;">AT+EDMFAPP=6,4 (Band & Bandwidth)</h5>
+		<pre class="raw-pre" id="raw-edmf4">--</pre>
+
+		<h5 style="margin:8px 0 4px 0;">AT+EDMFAPP=6,9 (Per-Antenna Metrics)</h5>
+		<pre class="raw-pre" id="raw-edmf9">--</pre>
+
+		<h5 style="margin:8px 0 4px 0;">AT+EDMFAPP=6,10 (Cell Signal Strengths)</h5>
+		<pre class="raw-pre" id="raw-edmf10">--</pre>
+
+		<h5 style="margin:8px 0 4px 0;">AT+CESQ & AT+CSQ</h5>
+		<pre class="raw-pre" id="raw-cesq">--</pre>
+
+		<h5 style="margin:8px 0 4px 0;">mipc_wan_cli --data_call_get</h5>
+		<pre class="raw-pre" id="raw-dcall">--</pre>
+	</div>
+</details>
+
+<script type="text/javascript">
+(function() {
+	var autoTimer = null;
+	var isBusy = false;
+
+	function formatBytes(bytes) {
+		if (typeof bytes !== 'number' || isNaN(bytes) || bytes === 0) return '0 B';
+		var k = 1024;
+		var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+		var i = Math.floor(Math.log(bytes) / Math.log(k));
+		return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+	}
+
+	function getRsrpColor(val) {
+		if (val >= -80) return '#28a745';
+		if (val >= -90) return '#17a2b8';
+		if (val >= -105) return '#ffc107';
+		return '#dc3545';
+	}
+
+	function getRsrpPercent(val) {
+		// Map -140 dBm (0%) to -60 dBm (100%)
+		if (typeof val !== 'number' || isNaN(val)) return 0;
+		if (val <= -140) return 2;
+		if (val >= -60) return 100;
+		return Math.round(((val - (-140)) / ((-60) - (-140))) * 100);
+	}
+
+	function updateBars(bars, quality) {
+		var qClass = (quality || 'POOR').toLowerCase();
+		var barEls = [
+			document.getElementById('sig-b1'),
+			document.getElementById('sig-b2'),
+			document.getElementById('sig-b3'),
+			document.getElementById('sig-b4')
+		];
+		for (var i = 0; i < 4; i++) {
+			barEls[i].className = 'signal-bar b' + (i + 1);
+			if (i < bars) {
+				barEls[i].className += ' active ' + qClass;
+			}
+		}
+		var qBadge = document.getElementById('top-sig-quality');
+		qBadge.className = 'cell-badge badge-' + qClass;
+		qBadge.textContent = quality || 'UNKNOWN';
+	}
+
+	function renderCellularInfo(d) {
+		if (!d || !d.ok) return;
+
+		// 1. Top Badges & Metric Grid
+		var sig = d.signal || {};
+		var sum = sig.summary || {};
+
+		updateBars(sum.bars || 1, sum.quality || 'POOR');
+		document.getElementById('top-rat-mode').textContent = sum.rat || (d.sim && d.sim.rat_mode) || '4G/5G';
+		document.getElementById('top-operator').textContent = (d.sim && d.sim.operator) ? (d.sim.operator + ' (' + (d.sim.plmn || '') + ')') : 'airtel';
+
+		document.getElementById('m-rsrp').innerHTML = (typeof sum.rsrp === 'number' ? sum.rsrp : '--') + '<span class="metric-unit">dBm</span>';
+		document.getElementById('m-rsrq').innerHTML = (typeof sum.rsrq === 'number' ? sum.rsrq : '--') + '<span class="metric-unit">dB</span>';
+		document.getElementById('m-sinr').innerHTML = (typeof sum.sinr === 'number' ? sum.sinr : '--') + '<span class="metric-unit">dB</span>';
+		document.getElementById('m-rssi').innerHTML = (typeof sum.rssi === 'number' ? sum.rssi : '--') + '<span class="metric-unit">dBm</span>';
+		document.getElementById('m-band').textContent = sum.band || '--';
+		document.getElementById('m-bw').textContent = sum.bandwidth || '--';
+
+		var pcell = (d.cells && d.cells[0]) || {};
+		document.getElementById('m-pci').textContent = pcell.pci !== undefined ? pcell.pci : '--';
+		document.getElementById('m-cid').textContent = pcell.enb_id ? (pcell.enb_id + ' (' + (pcell.sector_id || 0) + ')') : (pcell.cell_id_dec || '--');
+
+		// 2. Serving Cells Table
+		var tbodyCells = document.getElementById('tbody-cells');
+		var cells = d.cells || [];
+		document.getElementById('cell-count-badge').textContent = cells.length + (cells.length === 1 ? ' Cell' : ' Cells');
+
+		if (cells.length === 0) {
+			tbodyCells.innerHTML = '<tr><td colspan="13" style="text-align:center; color:#6c757d;">No cellular carrier connected or SIM inactive.</td></tr>';
+		} else {
+			var hCells = '';
+			for (var i = 0; i < cells.length; i++) {
+				var c = cells[i];
+				var isP = c.is_primary;
+				var rowBg = isP ? 'background:#f0f7ff;' : '';
+				var statusBadge = isP ? '<span class="cell-badge badge-primary">Primary (PCC)</span>' : '<span class="cell-badge badge-good">CA SCell</span>';
+				
+				hCells += '<tr style="' + rowBg + '">' +
+					'<td style="font-weight:600;">' + (c.type || 'PCC') + '</td>' +
+					'<td>' + (c.rat || '4G LTE') + '</td>' +
+					'<td style="font-weight:600; color:#0056b3;">' + (c.band || '--') + '</td>' +
+					'<td>' + (c.dl_bandwidth || '--') + '</td>' +
+					'<td>' + (c.arfcn || '--') + '</td>' +
+					'<td>' + (c.pci !== undefined ? c.pci : '--') + '</td>' +
+					'<td>' + (c.cell_id_hex ? ('0x' + c.cell_id_hex + ' (' + c.cell_id_dec + ')') : '--') + '</td>' +
+					'<td>' + (c.enb_id ? (c.enb_id + ' / ' + c.sector_id) : '--') + '</td>' +
+					'<td>' + (c.tac_hex ? ('0x' + c.tac_hex + ' (' + c.tac_dec + ')') : '--') + '</td>' +
+					'<td style="font-weight:600; color:' + getRsrpColor(c.rsrp) + ';">' + (c.rsrp !== undefined ? c.rsrp + ' dBm' : '--') + '</td>' +
+					'<td>' + (c.rsrq !== undefined ? c.rsrq + ' dB' : '--') + '</td>' +
+					'<td>' + (c.sinr !== undefined ? c.sinr + ' dB' : '--') + '</td>' +
+					'<td>' + statusBadge + '</td>' +
+				'</tr>';
+			}
+			tbodyCells.innerHTML = hCells;
+		}
+
+		// 3. Antenna RX Chains Table
+		var tbodyRx = document.getElementById('tbody-rx');
+		var rxList = d.rx_antennas || [];
+		if (rxList.length === 0) {
+			tbodyRx.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#6c757d;">Per-antenna RF telemetry not available in current mode.</td></tr>';
+		} else {
+			var hRx = '';
+			for (var j = 0; j < rxList.length; j++) {
+				var a = rxList[j];
+				var pct = getRsrpPercent(a.rsrp);
+				var col = getRsrpColor(a.rsrp);
+				hRx += '<tr>' +
+					'<td style="font-weight:600;">' + (a.label || a.name) + '</td>' +
+					'<td>' +
+						'<div class="ant-progress-bg" title="' + pct + '% signal quality">' +
+							'<div class="ant-progress-fill" style="width:' + pct + '%; background-color:' + col + ';"></div>' +
+						'</div>' +
+					'</td>' +
+					'<td style="font-weight:600; color:' + col + ';">' + (a.rsrp !== undefined ? a.rsrp + ' dBm' : '--') + '</td>' +
+					'<td>' + (a.rsrq !== undefined ? a.rsrq + ' dB' : '--') + '</td>' +
+					'<td>' + (a.rssi !== undefined ? a.rssi + ' dBm' : '--') + '</td>' +
+					'<td style="font-weight:600;">' + (a.sinr !== undefined ? a.sinr + ' dB' : '--') + '</td>' +
+				'</tr>';
+			}
+			tbodyRx.innerHTML = hRx;
+		}
+
+		// 4. SIM Details
+		var sim = d.sim || {};
+		document.getElementById('sim-badge-status').textContent = sim.status || 'READY';
+		document.getElementById('sim-status').textContent = (sim.status === 'COMPLETE_READY' ? 'Ready (Inserted & Verified)' : sim.status);
+		document.getElementById('sim-state').textContent = sim.state || 'ACTIVE';
+		document.getElementById('sim-pin-state').textContent = sim.pin_state || 'UNLOCKED';
+		if (sim.pin_tries) {
+			document.getElementById('sim-pin-tries').textContent = 
+				'PIN1: ' + sim.pin_tries.pin1 + ' | PIN2: ' + sim.pin_tries.pin2 + 
+				' | PUK1: ' + sim.pin_tries.puk1 + ' | PUK2: ' + sim.pin_tries.puk2;
+		}
+		document.getElementById('sim-operator').textContent = (sim.operator || 'airtel') + ' (PLMN: ' + (sim.plmn || '40410') + ')';
+		document.getElementById('sim-reg').textContent = (sim.reg_status === 'HOME' ? 'Home Network (Registered)' : sim.reg_status);
+		document.getElementById('sim-rat-mode').textContent = sim.rat_mode || '4/5G (LTE + NR NSA Dual-Connectivity)';
+		document.getElementById('sim-imsi').textContent = sim.imsi || '--';
+		document.getElementById('sim-iccid').textContent = sim.iccid || '--';
+
+		// 5. Modem & Hardware Details
+		var mod = d.modem || {};
+		document.getElementById('modem-badge-model').textContent = mod.model || 'RG500L-AR';
+		document.getElementById('modem-mfg').textContent = mod.manufacturer || 'Quectel';
+		document.getElementById('modem-model').textContent = mod.model || 'RG500L-AR';
+		document.getElementById('modem-fw').textContent = mod.firmware || '--';
+		document.getElementById('modem-platform').textContent = mod.platform || 'MediaTek T750 (MT6890) 5G SoC';
+		document.getElementById('modem-imei').textContent = mod.imei || '--';
+		document.getElementById('modem-imeisv').textContent = mod.imeisv || '--';
+		document.getElementById('modem-channel').textContent = mod.channel || 'MIPC / /dev/ttyUSB2';
+
+		var sys = d.system || {};
+		document.getElementById('sys-device').textContent = (sys.model || 'Zyxel AOD450ZY') + ' (' + (sys.hostname || 'AOD450') + ')';
+		document.getElementById('sys-os').textContent = (sys.os_release || 'OpenWrt 21.02.7') + ' / ' + (sys.kernel || 'Linux 5.4');
+		document.getElementById('sys-uptime').textContent = (sys.uptime || '--') + ' | Free RAM: ' + (sys.mem_available_mb || 0) + ' MB / ' + (sys.mem_total_mb || 0) + ' MB';
+
+		// 6. WAN Details
+		var wan = d.wan || {};
+		var wanBadge = document.getElementById('wan-badge-status');
+		if (wan.connected) {
+			wanBadge.className = 'cell-badge badge-excellent';
+			wanBadge.textContent = 'CONNECTED';
+			document.getElementById('wan-status').textContent = 'Active / Connected (Online)';
+		} else {
+			wanBadge.className = 'cell-badge badge-poor';
+			wanBadge.textContent = 'DISCONNECTED';
+			document.getElementById('wan-status').textContent = 'Disconnected / No Data Session';
+		}
+		document.getElementById('wan-iface').textContent = wan.iface || 'ccmni1';
+		document.getElementById('wan-apn').textContent = wan.apn || 'airtelgprs.com';
+		document.getElementById('wan-pdp').textContent = wan.pdp_type || 'IPv4';
+		document.getElementById('wan-ip').textContent = wan.ip_addr ? (wan.ip_addr + ' / ' + (wan.mask || 32)) : '--';
+		document.getElementById('wan-gw').textContent = wan.gateway || '--';
+		document.getElementById('wan-dns').textContent = (wan.dns1 || '--') + (wan.dns2 ? (' , ' + wan.dns2) : '');
+		document.getElementById('wan-mtu').textContent = wan.mtu || '1500';
+		document.getElementById('wan-traffic').textContent = 'RX: ' + formatBytes(wan.rx_bytes) + ' | TX: ' + formatBytes(wan.tx_bytes);
+
+		// 7. Thermal Sensors
+		var tGrid = document.getElementById('temp-grid');
+		var temps = mod.temperatures || {};
+		var sensorKeys = Object.keys(temps);
+		if (sensorKeys.length === 0) {
+			tGrid.innerHTML = '<div style="color:#6c757d; font-size:12px;">Thermal telemetry unavailable.</div>';
+		} else {
+			sensorKeys.sort();
+			var hTemp = '';
+			var maxT = 0;
+			for (var k = 0; k < sensorKeys.length; k++) {
+				var sName = sensorKeys[k];
+				var sVal = temps[sName];
+				var numVal = parseFloat(sVal);
+				if (!isNaN(numVal) && numVal > maxT) maxT = numVal;
+				hTemp += '<div class="temp-tag">' +
+					'<span class="temp-name">' + sName.replace('_', ' ') + '</span>' +
+					'<span class="temp-val">' + sVal + ' °C</span>' +
+				'</div>';
+			}
+			tGrid.innerHTML = hTemp;
+			document.getElementById('thermal-max-badge').textContent = maxT > 0 ? (maxT + ' °C Max') : '-- °C';
+		}
+
+		// 8. Raw Diagnostics
+		var raw = d.raw || {};
+		document.getElementById('raw-ecell').textContent = raw.ecell || '--';
+		document.getElementById('raw-edmf4').textContent = raw.edmf4 || '--';
+		document.getElementById('raw-edmf9').textContent = raw.edmf9 || '--';
+		document.getElementById('raw-edmf10').textContent = raw.edmf10 || '--';
+		document.getElementById('raw-cesq').textContent = (raw.cesq || '') + '\n' + (raw.csq || '');
+		document.getElementById('raw-dcall').textContent = raw.data_call || '--';
+
+		// Update timestamp
+		document.getElementById('update-time').textContent = 'Updated: ' + (d.timestamp || new Date().toLocaleTimeString());
+	}
+
+	function fetchCellularInfo() {
+		if (isBusy) return;
+		isBusy = true;
+		var updateLbl = document.getElementById('update-time');
+		updateLbl.textContent = 'Updating...';
+
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', '<%=luci.dispatcher.build_url("admin", "telephony", "cellular_info")%>?_=' + Date.now(), true);
+		xhr.timeout = 8000;
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState === 4) {
+				isBusy = false;
+				if (xhr.status === 200) {
+					try {
+						var parsed = JSON.parse(xhr.responseText);
+						renderCellularInfo(parsed);
+					} catch(e) {
+						updateLbl.textContent = 'JSON Parse Error';
+					}
+				} else {
+					updateLbl.textContent = 'HTTP Error ' + xhr.status;
+				}
+			}
+		};
+		xhr.ontimeout = function() {
+			isBusy = false;
+			updateLbl.textContent = 'Request Timed Out';
+		};
+		xhr.send();
+	}
+
+	function resetAutoTimer() {
+		if (autoTimer) {
+			clearInterval(autoTimer);
+			autoTimer = null;
+		}
+		var chk = document.getElementById('cell-autorefresh');
+		var intervalSel = document.getElementById('cell-interval');
+		if (chk && chk.checked) {
+			var ms = parseInt(intervalSel.value, 10) || 5000;
+			autoTimer = setInterval(fetchCellularInfo, ms);
+		}
+	}
+
+	document.getElementById('btn-refresh').addEventListener('click', function() {
+		fetchCellularInfo();
+	});
+
+	document.getElementById('cell-autorefresh').addEventListener('change', resetAutoTimer);
+	document.getElementById('cell-interval').addEventListener('change', resetAutoTimer);
+
+	// Initial load
+	fetchCellularInfo();
+	resetAutoTimer();
+})();
+</script>
+
+<%+footer%>

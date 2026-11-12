@@ -1,34 +1,62 @@
-# Zyxel AOD450ZY (Airtel 5G CPE) — Full OpenWrt LuCI + SMS & DHCP Persistence Suite
+# Zyxel AOD450ZY (Airtel 5G CPE) — Full OpenWrt LuCI + SMS, Cellular & Signal Suite
 
 [![OpenWrt](https://img.shields.io/badge/OpenWrt-21.02.7-blue.svg)](https://openwrt.org)
 [![Architecture](https://img.shields.io/badge/Arch-aarch64%20(Cortex--A55%2FA53)-green.svg)](https://openwrt.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Complete offline installation bundle and guide to enable the **full OpenWrt 21.02.7 LuCI Web UI**, interactive **Telephony -> SMS** manager (send, receive, drafts, inbox/outbox), and a persistent **2-second DHCP Watchdog** on the **Zyxel AOD450ZY** (Airtel 5G Outdoor Unit / CPE) — without disturbing the stock Airtel/Zyxel Web UI.
+Complete offline installation bundle and guide to enable the **full OpenWrt 21.02.7 LuCI Web UI**, interactive **Telephony -> SMS** manager (send, receive, drafts, inbox/outbox), live **Cellular Network, Band, Signal & Modem Details** page with **Antenna Alignment Helper**, and a persistent **2-second DHCP Watchdog** on the **Zyxel AOD450ZY** (Airtel 5G Outdoor Unit / CPE) — without disturbing the stock Airtel/Zyxel Web UI.
 
 ---
 
 ## Features
 
-* **Full OpenWrt 21.02.7 LuCI Web Interface (`uhttpd` on port `4153`)**:
-  * Runs alongside the stock Airtel/Zyxel Web UI (`:80` / `:443`) with zero port conflicts.
-  * **Status**: Overview, Firewall, Routes, System Log, Kernel Log (`dmesg`), Processes, Realtime Graphs.
-  * **System**: System Properties, Administration/Password, SSH Access & Keys, Startup, Scheduled Tasks, LEDs, Flash/Backup, Software (`opkg`), Reboot.
-  * **Network**: Interfaces, DHCP & DNS, Hostnames, Static Routes, Diagnostics (`ping`, `traceroute`, `nslookup`).
-  * **Telephony**: Stock MediaTek/Zyxel Telephony Overview + new **SMS** management page.
-* **Telephony -> SMS Page (`/cgi-bin/luci/admin/telephony/sms`)**:
-  * **Send & Save Drafts**: Compose SMS up to 160 characters with live character counter (`smscmd send` / `smscmd save`).
-  * **Incoming SMS Support**: Decodes both standard `"PduContent"` and incoming `"PduContent000"`+ (multi-part & `\uXXXX` Unicode escapes) from `/xdata/SMS/Inbox/` and auto-converts `/xdata/SMS/sms_new.txt`.
-  * **Full Management**: Tabbed views (**Inbox**, **Sent**, **Drafts**, **All**), **Unread** counter badge, **Reply**, **Load Draft**, **Mark Read / Unread**, **Delete**, and **Auto-refresh (15s)**.
-  * **Modem Diagnostics**: Displays SIM SMS storage slots (`AT+CPMS?`) and SMSC center (`AT+CSCA?`).
-  * **Security**: Enforces LuCI CSRF `token` validation (`test_post_security()`), strict filename allowlisting, input validation, XSS-safe DOM rendering (`textContent`), and shell-free process execution (`luci.sys.process.exec`).
-* **Persistent 2-Second DHCP Watchdog (`/etc/init.d/dhcp-watchdog`)**:
-  * Resolves the 4–5 minute DHCP IP delay when Bridge Mode is disabled (where `/usr/bin/hachi` only polls `udhcpd` every 300s after boot or Ethernet link flaps).
-  * Automatically checks every 2 seconds and restarts `/usr/sbin/udhcpd` when `bridge_mode_control` is `0` and DHCP Server is enabled, while staying inactive if Bridge Mode is turned back on.
-* **Fully Offline & Persistent**:
-  * Bundles all 9 official OpenWrt `21.02.7` `aarch64_cortex-a53` / `all` `.ipk` packages — no WAN internet needed on the ODU during installation.
-  * Stores everything persistently in `/overlay` (`~960 KB` / `7%` used) and registers custom files in `/etc/sysupgrade.conf`.
-  * Automatically detects the target ODU's `admin` password hash from `/etc/passwd` / `/etc/shadow` so LuCI uses that ODU's own credentials.
+### 1. Full OpenWrt 21.02.7 LuCI Web Interface (`uhttpd` on port `4153`)
+* Runs alongside the stock Airtel/Zyxel Web UI (`:80` / `:443`) with zero port conflicts.
+* **Status**: Overview, Firewall, Routes, System Log, Kernel Log (`dmesg`), Processes, Realtime Graphs.
+* **System**: System Properties, Administration/Password, SSH Access & Keys, Startup, Scheduled Tasks, LEDs, Flash/Backup, Software (`opkg`), Reboot.
+* **Network**: Interfaces, DHCP & DNS, Hostnames, Static Routes, Diagnostics (`ping`, `traceroute`, `nslookup`).
+* **Telephony**: Stock MediaTek/Zyxel Telephony Overview + new **SMS** + new **Cellular & Signal** status pages.
+
+### 2. Cellular & Signal Status (`/cgi-bin/luci/admin/telephony/cellular`)
+* **Real-time RF Signal Quality Gauge**:
+  * 4-bar visual signal indicator with dynamic color grading (**Excellent**, **Good**, **Fair**, **Poor**).
+  * Direct numeric metrics: **RSRP** (dBm), **RSRQ** (dB), **SINR** (dB), **RSSI** (dBm), **Primary Band**, **Bandwidth**, **PCI**, and **eNB ID / Sector**.
+* **Serving Cells & Carrier Aggregation (CA) Table**:
+  * Displays Primary Serving Cell (**PCell**) and Secondary Cells (**SCells**) for 4G LTE-A and 5G NR.
+  * Columns: Cell Type, RAT mode, Band (`B1`, `B3`, `B40`, `n78`), Bandwidth (`10MHz`, `15MHz`, `20MHz`, `100MHz`), EARFCN/ARFCN, PCI, Cell ID (ECI Hex & Decimal), eNB ID, Sector, TAC, RSRP, RSRQ, SINR, and Status.
+* **Per-Antenna RF Chains (Directional Antenna Alignment Helper)**:
+  * Live telemetry for all 4 internal directional antennas (**RX0 Main**, **RX1 Diversity**, **RX2 MIMO 1**, **RX3 MIMO 2**) via `AT+EDMFAPP=6,9`.
+  * Visual progress bars for RSRP (-140 dBm to -60 dBm), RSRQ, RSSI, and SINR.
+  * Essential for positioning and aiming the outdoor unit for optimal 4G/5G signal reception!
+* **SIM Card & Registration Details**:
+  * Status (`Ready / Inserted`), SIM State (`Active`), PIN State (`Unlocked`), PIN1/PIN2 & PUK1/PUK2 remaining attempt counters (`AT+EPINC?`).
+  * Operator (`airtel`), PLMN (`404-10`), IMSI (`AT+CIMI`), ICCID (`AT+CCID`), Network Registration State (`Home Network`), and Configured RAT Mode.
+* **Modem & Hardware Details**:
+  * Manufacturer (`Quectel`), Modem Model (`RG500L-AR`), Firmware Revision (`AT+CGMR`), Platform SoC (`MediaTek T750 / MT6890 5G`), IMEI, IMEI SVN, and Channel Interface (`MIPC / /dev/ttyUSB2`).
+  * **21 Thermal Sensors (`AT+QTEMP`)**: Live temperatures for SoC Max, CPU Little cores 0–3, GPUs, DRAM, Modem 5G/4G/3G, RF NTC, NR PA NTC, LTE PA NTC, and PMIC.
+  * System info: Device Model (`Zyxel AOD450ZY`), Hostname (`AOD450`), Kernel (`Linux 5.4 aarch64`), OpenWrt release, Uptime, and RAM usage.
+* **Active WAN & Data Call Session**:
+  * Status (`Connected / Active`), Network Interface (`ccmni1`), APN Profile (`airtelgprs.com`), PDP Type (`IPv4`), IPv4 Address / Subnet Mask, Default Gateway, Primary & Secondary DNS, MTU, and TX/RX byte counters.
+* **Diagnostics & Raw AT Response Drawer**:
+  * Collapsible drawer displaying raw output of `AT+ECELL`, `AT+EDMFAPP=6,4`, `AT+EDMFAPP=6,9`, `AT+EDMFAPP=6,10`, `AT+CESQ`, `AT+CSQ`, `AT+QTEMP`, and `mipc_wan_cli --data_call_get`.
+* **JSON API Endpoint (`/cgi-bin/luci/admin/telephony/cellular_info`)**:
+  * Fast (~30ms) REST endpoint returning structured JSON for custom dashboards, Home Assistant, or monitoring scripts.
+
+### 3. Telephony -> SMS Page (`/cgi-bin/luci/admin/telephony/sms`)
+* **Send & Save Drafts**: Compose SMS up to 160 characters with live character counter (`smscmd send` / `smscmd save`).
+* **Incoming SMS Support**: Decodes both standard `"PduContent"` and incoming `"PduContent000"`+ (multi-part & `\uXXXX` Unicode escapes) from `/xdata/SMS/Inbox/` and auto-converts `/xdata/SMS/sms_new.txt`.
+* **Full Management**: Tabbed views (**Inbox**, **Sent**, **Drafts**, **All**), **Unread** counter badge, **Reply**, **Load Draft**, **Mark Read / Unread**, **Delete**, and **Auto-refresh (15s)**.
+* **Modem Diagnostics**: Displays SIM SMS storage slots (`AT+CPMS?`) and SMSC center (`AT+CSCA?`).
+* **Security**: Enforces LuCI CSRF `token` validation (`test_post_security()`), strict filename allowlisting, input validation, XSS-safe DOM rendering (`textContent`), and shell-free process execution (`luci.sys.process.exec`).
+
+### 4. Persistent 2-Second DHCP Watchdog (`/etc/init.d/dhcp-watchdog`)
+* Resolves the 4–5 minute DHCP IP delay when Bridge Mode is disabled (where `/usr/bin/hachi` only polls `udhcpd` every 300s after boot or Ethernet link flaps).
+* Automatically checks every 2 seconds and restarts `/usr/sbin/udhcpd` when `bridge_mode_control` is `0` and DHCP Server is enabled, while staying inactive if Bridge Mode is turned back on.
+
+### 5. Fully Offline & Persistent
+* Bundles all 9 official OpenWrt `21.02.7` `aarch64_cortex-a53` / `all` `.ipk` packages — no WAN internet needed on the ODU during installation.
+* Stores everything persistently in `/overlay` (`~1 MB` / `7%` used) and registers custom files in `/etc/sysupgrade.conf`.
+* Automatically detects the target ODU's `admin` password hash from `/etc/passwd` / `/etc/shadow` so LuCI uses that ODU's own credentials.
 
 ---
 
@@ -59,17 +87,12 @@ zyxel-aod450-luci-sms/
     └── usr/
         ├── sbin/dhcp-watchdog.sh      # 2s udhcpd health check (Router mode safe)
         └── lib/lua/luci/
-            ├── controller/admin/telephony.lua  # Telephony + SMS routes & JSON API
-            └── view/admin_telephony/sms.htm    # Interactive LuCI SMS web page
+            ├── controller/admin/telephony.lua  # Telephony, SMS & Cellular routes
+            ├── model/cellular.lua              # Cellular & RF metrics decoding model
+            └── view/admin_telephony/
+                ├── sms.htm                     # Interactive SMS web page
+                └── cellular.htm                # Live Cellular & Signal web page
 ```
-
----
-
-## Prerequisites
-
-1. **Target Device**: Zyxel AOD450ZY running stock OpenWrt `21.02.7` (`gem6xxx/evb6890v1_64_cpe_emmc`).
-2. **Network / Access**: PC connected to the ODU LAN (`192.168.10.1`) with SSH access enabled (`admin` + ODU password).
-   > **Tip**: If Bridge Mode is disabled and you haven't installed the DHCP fix yet, the stock ODU can take 4–5 minutes to assign a DHCP lease after boot/unplug. You can temporarily set a static IP (`192.168.10.100/24`, gateway `192.168.10.1`) on your PC Ethernet adapter during the initial install.
 
 ---
 
@@ -77,7 +100,7 @@ zyxel-aod450-luci-sms/
 
 ### Method 1: One-Command Install from Windows (Recommended)
 
-Clone or download this repository, connect to the ODU, and run `install-from-pc.ps1`:
+Clone this repository, connect to the ODU, and run `install-from-pc.ps1`:
 
 ```powershell
 git clone https://github.com/dexdigi-tech/zyxel-aod450-luci-sms.git
@@ -103,54 +126,60 @@ powershell -ExecutionPolicy Bypass -File .\install-from-pc.ps1 -OduIp 192.168.10
    tar -xzf luci-sms-aod450.tar.gz
    cd luci-sms-aod450
    sh install.sh
-   rm -rf /tmp/luci-sms-aod450 /tmp/luci-sms-aod450.tar.gz
    ```
 
-When finished, you should see:
-```text
- * uhttpd port 4153: RUNNING (OK)
- * rpcd service:     RUNNING (OK)
- * dhcp-watchdog:    RUNNING (OK)
-```
+---
+
+## Accessing the Web Interfaces
+
+* **OpenWrt LuCI Web UI**: `http://192.168.10.1:4153/`
+  * **Username**: `admin`
+  * **Password**: *Your ODU admin password*
+  * **Cellular & Signal**: `Telephony -> Cellular & Signal`
+  * **SMS Manager**: `Telephony -> SMS`
+* **Stock Airtel / Zyxel Web UI**: `http://192.168.10.1/` (port 80 / 443 — untouched)
+
+> **Note on Browser Caching**: Modern browsers cache the LuCI menu structure in `sessionStorage`. If you previously visited LuCI before installing this update, please **Log Out** and **Log In** again (or open an Incognito window) so the new **Cellular & Signal** menu item appears immediately under **Telephony**.
 
 ---
 
-## Accessing LuCI & SMS
+## REST API Endpoints
 
-* **LuCI Web UI:** `http://192.168.10.1:4153/`
-* **Stock Airtel Web UI:** `http://192.168.10.1/` (ports `80` / `443` remain untouched)
-* **Username:** `admin`
-* **Password:** Your ODU's `admin` password (the installer reads its hash directly from the target ODU)
-* **SMS Manager:** Top menu -> **Telephony -> SMS** (`http://192.168.10.1:4153/cgi-bin/luci/admin/telephony/sms`)
+Both features provide fast JSON API endpoints for integration into scripts or home automation:
 
-> **Important Note on Settings:** Network/Cellular/Bridge settings on this device are managed by Zyxel's proprietary `cm`/`pdm` daemons on port `80`. Use LuCI (`:4153`) for system monitoring, logs, diagnostics, startup services, packages, and **Telephony -> SMS**, and use the stock UI (`:80`) for Airtel APN / Bridge Mode changes.
+* **Cellular & Signal Telemetry**:
+  ```http
+  GET /cgi-bin/luci/admin/telephony/cellular_info
+  ```
+  Returns full signal metrics (RSRP, RSRQ, SINR, RSSI, Band, Bandwidth, PCI, Cell ID, eNB, TAC), CA cells, per-antenna RX0–RX3 values, SIM card details, modem temperatures, and WAN IP/APN/traffic.
 
----
-
-## Technical Notes & Design Decisions
-
-1. **Why `uhttpd-mod-ubus` is not used**: Stock AOD450 ships `libubus20210603`, whereas OpenWrt 21.02.7 `uhttpd-mod-ubus` expects `libubus20210630`. Instead, `/etc/config/luci` configures `option ubuspath '/cgi-bin/luci/admin/ubus'`, which routes JSON-RPC `ubus` requests natively through LuCI CGI + `rpcd`.
-2. **Why `aarch64_cortex-a53` packages are used**: The ODU reports `aarch64_cortex-a55_neon-vfpv4`, which is binary-compatible with OpenWrt 21.02.7's `aarch64_cortex-a53` feed. `/etc/opkg/arch.conf` registers both architectures.
-3. **Why incoming SMS needed `PduContent000` handling**: `smscmd send`/`save` writes JSON with `"PduContent"`, whereas modem-received SMS files in `/xdata/SMS/Inbox/` store message parts under `"PduContent000"`, `"PduContent001"`, etc. `extract_sms_content()` in `telephony.lua` handles both formats seamlessly.
+* **SMS List**:
+  ```http
+  GET /cgi-bin/luci/admin/telephony/sms_list?modem_info=1
+  ```
 
 ---
 
-## Troubleshooting
+## Troubleshooting & Verification
 
-* **I already had LuCI open and don't see `Telephony -> SMS` in the menu:**
-  * LuCI 21.02 caches the navigation menu inside your browser tab's `window.sessionStorage` (`luci-session-store`). Click **Logout** and log back in, or open a **new browser tab** to `http://192.168.10.1:4153/cgi-bin/luci/admin/telephony/sms`.
-* **How to uninstall / revert:**
+* **Check running services**:
   ```sh
-  /etc/init.d/uhttpd stop && /etc/init.d/uhttpd disable
-  /etc/init.d/dhcp-watchdog stop && /etc/init.d/dhcp-watchdog disable
-  rm -f /usr/sbin/dhcp-watchdog.sh /etc/init.d/dhcp-watchdog /usr/lib/lua/luci/view/admin_telephony/sms.htm
-  [ -f /etc/telephony.lua.stock.bak ] && mv /etc/telephony.lua.stock.bak /usr/lib/lua/luci/controller/admin/telephony.lua
-  opkg remove uhttpd luci-app-opkg luci-mod-admin-full luci-mod-status luci-mod-network luci-mod-system luci-theme-bootstrap luci-proto-ipv6 luci-proto-ppp
-  rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache
+  netstat -lntp | grep 4153          # Verify uhttpd is listening on port 4153
+  ps | grep dhcp-watchdog            # Verify 2s watchdog is active
+  ```
+* **Verify Cellular Model on ODU CLI**:
+  ```sh
+  lua -e 'local c = require "luci.model.cellular"; print(require("luci.jsonc").stringify(c.get_cellular_info(), true))'
+  ```
+* **Persistence across firmware upgrades**:
+  Verified in `/etc/sysupgrade.conf`:
+  ```sh
+  cat /etc/sysupgrade.conf
   ```
 
 ---
 
 ## License
 
-Released under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
+OpenWrt IPK packages are copyright their respective OpenWrt project authors under the GPLv2.

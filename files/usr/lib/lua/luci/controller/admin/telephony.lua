@@ -7,6 +7,8 @@ function index()
   entry({"admin", "telephony", "sms_list"}, call("action_sms_list")).leaf = true
   entry({"admin", "telephony", "sms_send"}, call("action_sms_send")).leaf = true
   entry({"admin", "telephony", "sms_action"}, call("action_sms_manage")).leaf = true
+  entry({"admin", "telephony", "cellular"}, template("admin_telephony/cellular"), _("Cellular & Signal"), 3)
+  entry({"admin", "telephony", "cellular_info"}, call("action_cellular_info")).leaf = true
   --entry({"admin", "telephony", "trigger_sim_unlock"}, template("admin_telephony/trigger_sim_unlock"), nil, nil)
   entry({"admin", "telephony", "trigger_sim_unlock"}, call("action_unlock_sim"), nil, nil)
   entry({"admin", "telephony", "trigger_change_nw_radio"}, template("admin_telephony/trigger_change_nw_radio"), nil, nil)
@@ -362,4 +364,10 @@ function action_sms_manage()
 		output = (res and res.stdout) or "",
 		error = (not ok) and ((res and res.stderr ~= "" and res.stderr) or "Action failed") or nil
 	})
+end
+
+function action_cellular_info()
+	local cell = require "luci.model.cellular"
+	local data = cell.get_cellular_info()
+	write_json(nil, data)
 end
