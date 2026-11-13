@@ -9,34 +9,33 @@ init_gadget() {
 	fi
 
 	local GDIR="/sys/kernel/config/usb_gadget/g1"
-	if [ -d "$GDIR" ]; then
-		return 0
-	fi
+	if [ ! -d "$GDIR" ]; then
+		mkdir -p "$GDIR" 2>/dev/null || return 1
+		echo 0x0e8d > "$GDIR/idVendor"
+		echo 0x2008 > "$GDIR/idProduct"
+		echo 0x0200 > "$GDIR/bcdUSB"
 
-	mkdir -p "$GDIR" 2>/dev/null || return 1
-	echo 0x0e8d > "$GDIR/idVendor"
-	echo 0x2008 > "$GDIR/idProduct"
-	echo 0x0200 > "$GDIR/bcdUSB"
+		mkdir -p "$GDIR/strings/0x409"
+		echo "0123456789ABCDEF" > "$GDIR/strings/0x409/serialnumber"
+		echo "MediaTek" > "$GDIR/strings/0x409/manufacturer"
+		echo "Zyxel AOD450ZY 5G" > "$GDIR/strings/0x409/product"
 
-	mkdir -p "$GDIR/strings/0x409"
-	echo "0123456789ABCDEF" > "$GDIR/strings/0x409/serialnumber"
-	echo "MediaTek" > "$GDIR/strings/0x409/manufacturer"
-	echo "Zyxel AOD450ZY 5G" > "$GDIR/strings/0x409/product"
+		mkdir -p "$GDIR/configs/c.1/strings/0x409"
+		echo "RNDIS Tethering + ADB" > "$GDIR/configs/c.1/strings/0x409/configuration"
 
-	mkdir -p "$GDIR/configs/c.1/strings/0x409"
-	echo "RNDIS Tethering + ADB" > "$GDIR/configs/c.1/strings/0x409/configuration"
+		mkdir -p "$GDIR/functions/rndis.usb0"
+		ln -s "$GDIR/functions/rndis.usb0" "$GDIR/configs/c.1/" 2>/dev/null
 
-	mkdir -p "$GDIR/functions/rndis.usb0"
-	ln -s "$GDIR/functions/rndis.usb0" "$GDIR/configs/c.1/" 2>/dev/null
-
-	local UDC_DEV="11201000.usb"
-	if [ -e "/sys/class/udc/$UDC_DEV" ]; then
-		echo "$UDC_DEV" > "$GDIR/UDC" 2>/dev/null
+		local UDC_DEV="11201000.usb"
+		if [ -e "/sys/class/udc/$UDC_DEV" ]; then
+			echo "$UDC_DEV" > "$GDIR/UDC" 2>/dev/null
+		fi
 	fi
 
 	sleep 1
-	if ip link show rndis0 >/dev/null 2>&1; then
-		ip link set rndis0 up
+	if [ -d /sys/class/net/rndis0 ]; then
+		ip link set rndis0 up 2>/dev/null
+		brctl setfd br0 0 2>/dev/null
 		brctl addif br0 rndis0 2>/dev/null
 	fi
 }
